@@ -1,24 +1,406 @@
----
-title: app.json / app.config.js
-description: A reference of available properties in Expo app config.
-maxHeadingDepth: 5
----
+// App.js
+import React from 'react';
+import { StatusBar } from 'expo-status-bar';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  SafeAreaView,
+  Animated,
+  Platform
+} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { BookOpen02Icon } from '@expo/styleguide-icons/outline/BookOpen02Icon';
+/* -------------------------
+   Sample Data
+   ------------------------- */
+const sampleVarieties = [
+  {
+    id: 'koroneiki',
+    name: 'Koroneiki',
+    origin: 'Greece',
+    oilPercent: '22–28%',
+    taste: 'Fruity, peppery',
+    image: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&s=3b0dbfe6c0a0b1a9f2a3c6e9b8a4ed8b'
+  },
+  {
+    id: 'picual',
+    name: 'Picual',
+    origin: 'Spain',
+    oilPercent: '20–27%',
+    taste: 'Bitter, fruity',
+    image: 'https://images.unsplash.com/photo-1510627498534-cf7e9002facc?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&s=2fbd0baf4a9ddf0f1a7d6b6122536b7e'
+  },
+  {
+    id: 'arbequina',
+    name: 'Arbequina',
+    origin: 'Spain',
+    oilPercent: '18–22%',
+    taste: 'Mild, buttery',
+    image: 'https://images.unsplash.com/photo-1592928309391-19b3a9b24a55?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&s=8a8c4f6f9d1f7b2a1c3f0f2d6b7e8c9d'
+  },
+];
 
-import schema from '~/public/static/schemas/v54.0.0/app-config-schema.json';
-import AppConfigSchemaTable from '~/ui/components/AppConfigSchemaTable';
-import { BoxLink } from '~/ui/components/BoxLink';
+const sampleCards = [
+  { id: '1', title: 'Olive Varieties', subtitle: 'Identify common varieties', icon: 'leaf' },
+  { id: '2', title: 'Diseases & Symptoms', subtitle: 'Recognize early signs', icon: 'alert-circle' },
+  { id: '3', title: 'Treatments', subtitle: 'Recommended practices', icon: 'medkit' },
+  { id: '4', title: 'Soil & Fertilizer', subtitle: 'Best soil tips', icon: 'earth' },
+];
 
-The following is a list of properties that are available for you under the `"expo"` key in **app.json** or **app.config.json**. These properties can be passed to the top level object of **app.config.js** or **app.config.ts**.
+/* -------------------------
+   UI Components
+   ------------------------- */
 
-<BoxLink
-  title="Configuration with app config"
-  description="For information on app configuration, the differences between various app config files, and how to use them dynamically."
-  href="/workflow/configuration/"
-  Icon={BookOpen02Icon}
-/>
+function Header() {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        <Image
+          source={{ uri: 'https://i.ibb.co/4R97Pt8/olive-branch.png' }}
+          style={styles.logo}
+        />
+        <View>
+          <Text style={styles.appTitle}>Olive Guide</Text>
+          <Text style={styles.appTag}>Grow better · Identify faster</Text>
+        </View>
+      </View>
+      <TouchableOpacity style={styles.profileBtn}>
+        <Ionicons name="person-circle" size={36} color="#f6f6f2" />
+      </TouchableOpacity>
+    </View>
+  );
+}
 
-## Properties
+function SearchBar({ value, onChange }) {
+  return (
+    <View style={styles.searchWrap}>
+      <Ionicons name="search" size={20} color="#2b5b2b" />
+      <TextInput
+        placeholder="Search varieties, diseases, treatments..."
+        placeholderTextColor="#2b5b2b88"
+        style={styles.searchInput}
+        value={value}
+        onChangeText={onChange}
+      />
+    </View>
+  );
+}
 
-<AppConfigSchemaTable schema={schema} />
+function FeatureCard({ item }) {
+  return (
+    <TouchableOpacity style={styles.featureCard}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <MaterialCommunityIcons name={item.icon} size={28} color="#D4AF37" />
+        <View style={{ marginLeft: 12 }}>
+          <Text style={styles.featureTitle}>{item.title}</Text>
+          <Text style={styles.featureSub}>{item.subtitle}</Text>
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={22} color="#2b5b2b" />
+    </TouchableOpacity>
+  );
+}
+
+function VarietyCard({ data }) {
+  return (
+    <TouchableOpacity style={styles.varietyCard}>
+      <Image source={{ uri: data.image }} style={styles.varietyImage} />
+      <View style={styles.varietyInfo}>
+        <Text style={styles.varietyName}>{data.name}</Text>
+        <Text style={styles.varietyMeta}>{data.origin} · Oil: {data.oilPercent}</Text>
+        <Text style={styles.varietyTaste}>Taste: {data.taste}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+/* -------------------------
+   Screens
+   ------------------------- */
+
+function HomeScreen() {
+  const [query, setQuery] = React.useState('');
+  const fade = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true
+    }).start();
+  }, []);
+
+  const filteredVarieties = sampleVarieties.filter(v =>
+    v.name.toLowerCase().includes(query.toLowerCase()) ||
+    v.origin.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <Header />
+      <Animated.View style={{ opacity: fade, flex: 1, width: '100%' }}>
+        <View style={styles.content}>
+          <SearchBar value={query} onChange={setQuery} />
+
+          <FlatList
+            data={sampleCards}
+            keyExtractor={(i) => i.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 12, maxHeight: 110 }}
+            contentContainerStyle={{ paddingLeft: 20 }}
+            renderItem={({ item }) => <FeatureCard item={item} />}
+          />
+
+          <Text style={styles.sectionTitle}>Popular Varieties</Text>
+
+          <FlatList
+            data={filteredVarieties}
+            keyExtractor={(i) => i.id}
+            renderItem={({ item }) => <VarietyCard data={item} />}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
+          />
+        </View>
+      </Animated.View>
+    </SafeAreaView>
+  );
+}
+
+function VarietiesScreen() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header />
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>All Varieties</Text>
+        <FlatList
+          data={sampleVarieties}
+          keyExtractor={i => i.id}
+          renderItem={({ item }) => <VarietyCard data={item} />}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function DiseasesScreen() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header />
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>Diseases & Symptoms</Text>
+        <Text style={{ color: '#e9ffe9', marginTop: 12 }}>
+          Aap yahaan common olive diseases aur unke symptoms dekh sakte hain.
+        </Text>
+        {/* Placeholder cards */}
+        <View style={{ marginTop: 18 }}>
+          <FeatureCard item={{ icon: 'alert-circle', title: 'Fungal infections', subtitle: 'Leaves discoloration' }} />
+          <FeatureCard item={{ icon: 'bug', title: 'Pests', subtitle: 'Scale & Mites' }} />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function TreatmentsScreen() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header />
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>Treatments & Recommendations</Text>
+        <Text style={{ color: '#e9ffe9', marginTop: 12 }}>
+          Integrated practices, fungicide alternatives, fertilization tips.
+        </Text>
+        <View style={{ marginTop: 18 }}>
+          <FeatureCard item={{ icon: 'pill', title: 'Chemical treatments', subtitle: 'Use responsibly' }} />
+          <FeatureCard item={{ icon: 'leaf', title: 'Cultural practices', subtitle: 'Pruning & irrigation' }} />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function ProfileScreen() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header />
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>Profile</Text>
+        <View style={styles.profileCard}>
+          <Image source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=3f6b9a9ca0a2bc1e6f3c1c7b2c2d7f6b' }} style={styles.profileImage} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Farmer / User</Text>
+            <Text style={{ color: '#d8eedd', marginTop: 6 }}>Loralai, Pakistan</Text>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------------
+   Navigation Setup
+   ------------------------- */
+
+const Tab = createBottomTabNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        initialRouteName="Home"
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: '#0B6623',
+            borderTopColor: '#092e16',
+            height: Platform.OS === 'ios' ? 90 : 70,
+            paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+            paddingTop: 8
+          },
+          tabBarActiveTintColor: '#D4AF37',
+          tabBarInactiveTintColor: '#e9ffe9aa',
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        })}
+      >
+        <Tab.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />
+          }}
+        />
+        <Tab.Screen
+          name="Varieties"
+          component={VarietiesScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="leaf" size={size} color={color} />
+          }}
+        />
+        <Tab.Screen
+          name="Diseases"
+          component={DiseasesScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Ionicons name="bandage" size={size} color={color} />
+          }}
+        />
+        <Tab.Screen
+          name="Treatments"
+          component={TreatmentsScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="medkit" size={size} color={color} />
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />
+          }}
+        />
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+
+/* -------------------------
+   Styles
+   ------------------------- */
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0B6623' // dark olive background
+  },
+  header: {
+    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  logo: { width: 56, height: 56, marginRight: 12, resizeMode: 'contain' },
+  appTitle: { color: '#ffffff', fontSize: 20, fontWeight: '800' },
+  appTag: { color: '#cfe9c8', fontSize: 12, marginTop: 2 },
+  profileBtn: { padding: 6 },
+
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    flex: 1
+  },
+
+  searchWrap: {
+    backgroundColor: '#e9ffe9',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  searchInput: {
+    marginLeft: 8,
+    flex: 1,
+    color: '#2b5b2b',
+    fontWeight: '600'
+  },
+
+  featureCard: {
+    backgroundColor: '#163c21',
+    borderRadius: 12,
+    padding: 14,
+    marginRight: 12,
+    width: 220,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3
+  },
+  featureTitle: { color: '#e9ffe9', fontWeight: '800', fontSize: 16 },
+  featureSub: { color: '#bfe7b7', fontSize: 12, marginTop: 4 },
+
+  sectionTitle: {
+    color: '#fff',
+    marginTop: 18,
+    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '800'
+  },
+
+  varietyCard: {
+    backgroundColor: '#103116',
+    marginVertical: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10
+  },
+  varietyImage: { width: 86, height: 86, borderRadius: 10, marginRight: 12 },
+  varietyInfo: { flex: 1 },
+  varietyName: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  varietyMeta: { color: '#d3e9c9', marginTop: 4 },
+  varietyTaste: { color: '#bfe7b7', marginTop: 6, fontStyle: 'italic' },
+
+  profileCard: {
+    backgroundColor: '#163c21',
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  profileImage: { width: 72, height: 72, borderRadius: 10 },
+});
